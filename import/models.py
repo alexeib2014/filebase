@@ -1,15 +1,16 @@
 from django.db import models
 
 
-class Disc(models.Model):
+class Disk(models.Model):
     name = models.CharField(max_length=200)
-    datetime = models.DateTimeField()
+    scan_datetime = models.DateTimeField()
+    create_datetime = models.DateTimeField()
     comment = models.TextField()
 
 
 class Folder(models.Model):
     name = models.CharField(max_length=200)
-    disk = models.ForeignKey(Disc, on_delete=models.CASCADE)
+    disk = models.ForeignKey(Disk, on_delete=models.CASCADE)
     comment = models.TextField()
 
 
