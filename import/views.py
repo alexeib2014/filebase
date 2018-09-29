@@ -1,29 +1,33 @@
 from django.http import HttpResponse
-from .models import Disk
+from .models import Disk, Folder, File
 
 
 class CRecord:
     disk_name = ''
     disk_scan_datetime = ''
-    disk_id = 0
+    disk = None
 
-    def find_disk(self, name, scan_datetime):
+    def get_disk(self, name, scan_datetime):
         if self.disk_name==name and self.disk_scan_datetime==scan_datetime:
-            return self.disk_id
+            return self.disk
 
-        disk = Disk.objects.filter(name=name, scan_datetime=scan_datetime)
-        if len(disk) == 0:
-            return 0
-        if len(disk) > 1:
+        disks = Disk.objects.filter(name=name, scan_datetime=scan_datetime)
+        if len(disks) == 0:
+            return None
+        if len(disks) > 1:
             self.log('Multiple disks in database (%s,%s)' % (name, scan_datetime))
 
         self.disk_name = name
         self.disk_scan_datetime = scan_datetime
-        self.disk_id = disk[0].id
-        return disk[0].id
+        self.disk = disks[0]
+        return self.disk
+
+    def get_folder(self, disk, folder_arr):
+        pass
+        return None
 
     def create_disk(self, name, scan_datetime):
-        if self.find_disk(name, scan_datetime):
+        if self.get_disk(name, scan_datetime):
             self.log('Disk already imported (%s,%s)' % (name, scan_datetime))
             return False
 
@@ -34,8 +38,27 @@ class CRecord:
         disk.save()
         return True
 
-    def write_record(self, disk_name, disk_datetime, file_name, size, datetime, rights, owner, group, sha1sum):
-        pass
+    def write_record(self, disk_name, disk_datetime, full_name, size, datetime, rights, owner, group, sha1sum):
+        disk = self.get_disk(disk_name, disk_datetime)
+        if disk is None:
+            raise Exception("Disk doesn't exist (%s, %s)" % (disk_name, disk_datetime))
+
+        folder_file_name = full_name[len(disk_name):]
+        folder_file_name_arr = folder_file_name.split('/')
+        folder = self.get_folder(disk, folder_file_name_arr[1:-1])
+
+        file_name = folder_file_name_arr[-1]
+
+        file = File(disk = disk,
+                  folder = folder,
+                    name = file_name,
+                    size = size,
+                datetime = datetime,
+                  rights = rights,
+                   owner = owner,
+                   group = group,
+                 sha1sum = sha1sum)
+        file.save()
 
     def reset_database(self):
         disks = Disk.objects.all()
@@ -91,11 +114,10 @@ class ImportFile:
 
         return sha1sum, fullname1
 
-    def log_error(self, message):
+    def log(self, message):
         pass
 
     def loaddata(self, fname):
-        count = 0
         f = open(fname)
 
         line = self.readline(f)
@@ -111,6 +133,7 @@ class ImportFile:
         if not Record.create_disk(disk_name, disk_datetime):
             return 0
 
+        count = 0
         pair = 0
         while line:
             line = self.readline(f)
@@ -119,19 +142,23 @@ class ImportFile:
                 if rights:
                     pair = 1
                 else:
-                    self.log_error('Invalid first line')
+                    self.log('Invalid first line')
             else:
                 sha1sum, fullname1 = self.translate_file_line1(line)
                 if sha1sum:
                     pair = 0
                     if fullname0 != fullname1:
-                        self.log_error('Filename first and second lines does not match')
+                        self.log('Filename first and second lines does not match')
                     elif fullname0[:len(disk_name)] != disk_name:
-                        self.log_error('Filename does not match to disk name')
+                        self.log('Filename does not match to disk name')
                     else:
-                        Record.write_record(disk_name, disk_datetime, fullname0, size, file_datetime, rights, owner, group, sha1sum)
+                        try:
+                            Record.write_record(disk_name, disk_datetime, fullname0, size, file_datetime, rights, owner, group, sha1sum)
+                        except Exception as error:
+                            self.log(str(error))
+                        count += 1
                 else:
-                    self.log_error('Invalid second line')
+                    self.log('Invalid second line')
                     rights, owner, group, size, file_datetime, fullname0 = self.translate_file_line0(line)
                     if rights:      # maybe one line skipped, try to fix
                         pair = 1
@@ -145,6 +172,8 @@ class ImportFile:
 
 def index(request):
     fname = request.GET.get('file')
+
+    Record.reset_database()
 
     import_file = ImportFile()
     files = 0

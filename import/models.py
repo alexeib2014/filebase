@@ -10,13 +10,14 @@ class Disk(models.Model):
 
 class Folder(models.Model):
     name = models.CharField(max_length=200)
-    disk = models.ForeignKey(Disk, on_delete=models.CASCADE)
+    disk = models.ForeignKey(Disk, on_delete=models.CASCADE, null=True)
     comment = models.TextField()
 
 
 class File(models.Model):
+    disk = models.ForeignKey(Disk, on_delete=models.CASCADE, null=True)
+    folder = models.ForeignKey(Folder, on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=200)
-    folder = models.ForeignKey(Folder, on_delete=models.CASCADE)
     size = models.IntegerField()
     datetime = models.DateTimeField()
     rights = models.CharField(max_length=12)
