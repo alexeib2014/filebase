@@ -1,4 +1,5 @@
 from django.http import HttpResponse
+import time
 from .models import Disk, Folder, File
 
 
@@ -31,7 +32,7 @@ class CRecord:
             self.log('Disk already imported (%s,%s)' % (name, scan_datetime))
             return False
 
-        create_datetime = '2018-01-01 01:02:03'
+        create_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         disk = Disk( name = name,
             scan_datetime = scan_datetime,
           create_datetime = create_datetime )
@@ -81,8 +82,24 @@ class ImportFile:
         return line
 
     def translate_disk_datetime(self, line):
-        line = '2018-01-01 01:02:03'
-        return line
+        months = {'Jan': '01',
+                  'Feb': '02',
+                  'Mar': '03',
+                  'Apr': '04',
+                  'May': '05',
+                  'Jun': '06',
+                  'Jul': '07',
+                  'Aug': '08',
+                  'Sep': '09',
+                  'Oct': '10',
+                  'Nov': '11',
+                  'Dec': '12'}
+        year = line[-4:]
+        month = months[line[4:7]]
+        day = '%02i' % int(line[8:10])
+        time = line[11:19]
+        result = '%s-%s-%s %s' % (year, month, day, time)
+        return result
 
     def translate_file_line0(self, line):
         try:
@@ -180,7 +197,7 @@ def index(request):
     if fname:
         files = import_file.loaddata(fname)
 
-    return HttpResponse('Hello, world! Loaded %i files from %s' % (files,fname))
+    return HttpResponse('Hello, world! Loaded %i file records from %s' % (files,fname))
 
 
 def reset_database(request):
