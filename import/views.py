@@ -3,27 +3,19 @@ import time
 from .models import Disk, Folder, File
 
 
-class CRecord:
-    disk_name = ''
-    disk_scan_datetime = ''
-    disk = None
-
-    def get_disk(self, name, scan_datetime):
-        if self.disk_name==name and self.disk_scan_datetime==scan_datetime:
-            return self.disk
-
+class Record:
+    @classmethod
+    def get_disk(cls, name, scan_datetime):
         disks = Disk.objects.filter(name=name, scan_datetime=scan_datetime)
         if len(disks) == 0:
             return None
         if len(disks) > 1:
-            self.log('Multiple disks in database (%s,%s)' % (name, scan_datetime))
+            cls.log('Multiple disks in database (%s,%s)' % (name, scan_datetime))
+        cls.disk = disks[0]
+        return cls.disk
 
-        self.disk_name = name
-        self.disk_scan_datetime = scan_datetime
-        self.disk = disks[0]
-        return self.disk
-
-    def get_folder(self, disk, folder_arr):
+    @classmethod
+    def get_folder(cls, disk, folder_arr):
         folder = None
         for folder_name in folder_arr:
             parent = folder
@@ -37,9 +29,10 @@ class CRecord:
                 folder.save()
         return folder
 
-    def create_disk(self, name, scan_datetime):
-        if self.get_disk(name, scan_datetime):
-            self.log('Disk already imported (%s,%s)' % (name, scan_datetime))
+    @classmethod
+    def create_disk(cls, name, scan_datetime):
+        if cls.get_disk(name, scan_datetime):
+            cls.log('Disk already imported (%s,%s)' % (name, scan_datetime))
             return False
 
         create_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -49,14 +42,15 @@ class CRecord:
         disk.save()
         return True
 
-    def write_record(self, disk_name, disk_datetime, full_name, size, datetime, rights, owner, group, sha1sum):
-        disk = self.get_disk(disk_name, disk_datetime)
+    @classmethod
+    def write_record(cls, disk_name, disk_datetime, full_name, size, datetime, rights, owner, group, sha1sum):
+        disk = cls.get_disk(disk_name, disk_datetime)
         if disk is None:
             raise Exception("Disk doesn't exist (%s, %s)" % (disk_name, disk_datetime))
 
         folder_file_name = full_name[len(disk_name):]
         folder_file_name_arr = folder_file_name.split('/')
-        folder = self.get_folder(disk, folder_file_name_arr[1:-1])
+        folder = cls.get_folder(disk, folder_file_name_arr[1:-1])
 
         file_name = folder_file_name_arr[-1]
 
@@ -71,16 +65,15 @@ class CRecord:
                  sha1sum = sha1sum)
         file.save()
 
-    def reset_database(self):
+    @classmethod
+    def reset_database(cls):
         disks = Disk.objects.all()
         for disk in disks:
             disk.delete()
 
-    def log(self, message):
+    @classmethod
+    def log(cls, message):
         print(message)
-
-
-Record = CRecord()
 
 
 class ImportFile:
