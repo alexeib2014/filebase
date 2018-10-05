@@ -24,8 +24,18 @@ class CRecord:
         return self.disk
 
     def get_folder(self, disk, folder_arr):
-        pass
-        return None
+        folder = None
+        for folder_name in folder_arr:
+            parent = folder
+            folders = Folder.objects.filter(disk=disk, parent=parent, name=folder_name)
+            if folders:
+                folder = folders[0]
+            else:
+                folder = Folder(disk=disk,
+                                parent=parent,
+                                name=folder_name)
+                folder.save()
+        return folder
 
     def create_disk(self, name, scan_datetime):
         if self.get_disk(name, scan_datetime):
@@ -67,7 +77,7 @@ class CRecord:
             disk.delete()
 
     def log(self, message):
-        pass
+        print(message)
 
 
 Record = CRecord()

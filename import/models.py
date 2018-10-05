@@ -9,8 +9,9 @@ class Disk(models.Model):
 
 
 class Folder(models.Model):
-    name = models.CharField(max_length=200)
     disk = models.ForeignKey(Disk, on_delete=models.CASCADE, null=True)
+    parent = models.ForeignKey('Folder', on_delete=models.CASCADE, null=True)
+    name = models.CharField(max_length=200)
     comment = models.TextField()
 
 
