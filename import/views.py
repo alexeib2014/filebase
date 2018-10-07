@@ -30,15 +30,16 @@ class Record:
         return folder
 
     @classmethod
-    def create_disk(cls, name, scan_datetime):
+    def create_disk(cls, file_name, name, scan_datetime):
         if cls.get_disk(name, scan_datetime):
             cls.log('Disk already imported (%s,%s)' % (name, scan_datetime))
             return False
 
         create_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-        disk = Disk( name = name,
-            scan_datetime = scan_datetime,
-          create_datetime = create_datetime )
+        disk = Disk(file_name = file_name,
+                         name = name,
+                scan_datetime = scan_datetime,
+              create_datetime = create_datetime )
         disk.save()
         return True
 
@@ -81,6 +82,8 @@ class ImportFile:
 
     def readline(self, f):
         self.line_number += 1
+        if self.line_number % 100 == 0:
+            print('Read %i lines\n' % self.line_number, end='')
         line = f.readline().replace('\n','').replace('\r','')
         return line
 
@@ -137,8 +140,8 @@ class ImportFile:
     def log(self, message):
         pass
 
-    def loaddata(self, fname):
-        f = open(fname)
+    def loaddata(self, file_name):
+        f = open(file_name)
 
         line = self.readline(f)
         if line != '--------------------------------':
@@ -150,7 +153,7 @@ class ImportFile:
         line = self.readline(f)
         disk_name = line
 
-        if not Record.create_disk(disk_name, disk_datetime):
+        if not Record.create_disk(file_name, disk_name, disk_datetime):
             return 0
 
         count = 0
@@ -193,7 +196,7 @@ class ImportFile:
 def index(request):
     fname = request.GET.get('file')
 
-    Record.reset_database()
+    # Record.reset_database()
 
     import_file = ImportFile()
     files = 0
