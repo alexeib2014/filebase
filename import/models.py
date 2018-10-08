@@ -6,7 +6,7 @@ class Disk(models.Model):
     name = models.CharField(max_length=200, db_index=True)
     scan_datetime = models.DateTimeField(db_index=True)
     create_datetime = models.DateTimeField()
-    prev_version = models.ForeignKey('Disk', on_delete=models.CASCADE, null=True)
+    next_version = models.ForeignKey('Disk', on_delete=models.CASCADE, null=True)
     comment = models.TextField()
 
 
