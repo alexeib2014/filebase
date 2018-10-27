@@ -34,6 +34,7 @@ class FileUnique(models.Model):
 
 
 class File(models.Model):
+    disk = models.ForeignKey(Disk, on_delete=models.CASCADE, null=True, db_index=True)
     folder = models.ForeignKey(Folder, on_delete=models.CASCADE, null=True, db_index=True)
     file = models.ForeignKey(FileUnique, on_delete=models.CASCADE, null=True, db_index=True)
 

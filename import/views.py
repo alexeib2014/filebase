@@ -66,12 +66,14 @@ class FileRecord:
                                                         group = group,
                                                       sha1sum = sha1sum)
 
-        File.objects.create(folder = folder,
-                              file = file)
+        File.objects.create(disk = disk,
+                          folder = folder,
+                            file = file)
 
 
 class ImportFile:
     line_number = 0
+    lines_total = 0
     re_line0 = None
     re_line1 = None
 
@@ -81,8 +83,8 @@ class ImportFile:
 
     def readline(self, f):
         self.line_number += 1
-        if self.line_number % 100 == 0:
-            print('Read %i lines\n' % self.line_number, end='')
+        if  self.lines_total>0 and self.line_number % 100 == 0:
+            print('Read %i lines of %i (%i%%)\n' % (self.line_number, self.lines_total, self.line_number*100/self.lines_total), end='')
         line = f.readline().replace('\n','').replace('\r','')
         return line
 
@@ -149,6 +151,14 @@ class ImportFile:
         f = open(file_name)
 
         line = self.readline(f)
+        while line:
+            line = self.readline(f)
+        self.lines_total = self.line_number
+        self.line_number = 0
+
+        f.seek(0)
+
+        line = self.readline(f)
         if line != '--------------------------------':
             return 0
 
@@ -196,6 +206,7 @@ class ImportFile:
                         pair = 0
 
         f.close()
+        print('Read %i lines of %i (%i%%)' % (self.line_number, self.lines_total, self.line_number * 100 / self.lines_total))
 
         Log.info('Loaded disk "%s" from file "%s" with %i file records' % (disk_name, file_name, count))
 
