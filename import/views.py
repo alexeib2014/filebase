@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 import time
+import re
 from .models import Disk, Folder, File, FileUnique, Log
 
 
@@ -41,6 +42,8 @@ class FileRecord:
                 scan_datetime = scan_datetime,
               create_datetime = create_datetime )
         disk.save()
+
+        Log.info('Created disk "%s" from file "%s"' % (name, file_name))
         return True
 
     @classmethod
@@ -69,6 +72,12 @@ class FileRecord:
 
 class ImportFile:
     line_number = 0
+    re_line0 = None
+    re_line1 = None
+
+    def __init__(self):
+        self.re_line0 = re.compile(r'^(\S+)\s+\d+\s+(\S+)\s+(\S+)\s+(\d+)\s+(\S+)\s+([^\.\s]+)\S*\s+\S+\s+(.*)$')
+        self.re_line1 = re.compile(r'^(\S+)\s+(.*)$')
 
     def readline(self, f):
         self.line_number += 1
@@ -99,13 +108,13 @@ class ImportFile:
 
     def translate_file_line0(self, line):
         try:
-            line_arr = line.split(' ')
-            rights = line_arr[0]
+            line_arr = self.re_line0.split(line)
+            rights = line_arr[1]
             owner = line_arr[2]
             group = line_arr[3]
             size = line_arr[4]
-            file_datetime = line_arr[5] + ' ' + line_arr[6][:8]
-            fullname0 = line_arr[-1]
+            file_datetime = line_arr[5] + ' ' + line_arr[6]
+            fullname0 = line_arr[7]
         except:
             rights = ''
             owner = ''
@@ -118,14 +127,23 @@ class ImportFile:
 
     def translate_file_line1(self, line):
         try:
-            line_arr = line.split(' ')
-            sha1sum = line_arr[0]
-            fullname1 = line_arr[-1]
+            line_arr = self.re_line1.split(line)
+            sha1sum = line_arr[1]
+            fullname1 = line_arr[2]
         except:
             sha1sum = ''
             fullname1 = ''
 
         return sha1sum, fullname1
+
+    def is_empty(self, line):
+        if len(line) == 0:
+            return True
+        if line[0] == '\n':
+            return True
+        if line[0] == '#':
+            return True
+        return False
 
     def loaddata(self, file_name):
         f = open(file_name)
@@ -147,6 +165,8 @@ class ImportFile:
         pair = 0
         while line:
             line = self.readline(f)
+            if self.is_empty(line):
+                continue
             if pair == 0:
                 rights, owner, group, size, file_datetime, fullname0 = self.translate_file_line0(line)
                 if rights:
@@ -177,7 +197,7 @@ class ImportFile:
 
         f.close()
 
-        Log.info('Loaded filename "%s" with %i file records, disk name "%s"' % (file_name, count, disk_name))
+        Log.info('Loaded disk "%s" from file "%s" with %i file records' % (disk_name, file_name, count))
 
         return count
 
