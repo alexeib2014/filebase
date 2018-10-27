@@ -1,5 +1,6 @@
 /.venv3
 /.idea
 /data
+/dev
 /db.sqlite3
 __pycache__

@@ -3,7 +3,7 @@ import time
 from .models import Disk, Folder, File
 
 
-class Record:
+class FileRecord:
     @classmethod
     def get_disk(cls, name, scan_datetime):
         disks = Disk.objects.filter(name=name, scan_datetime=scan_datetime)
@@ -137,7 +137,10 @@ class ImportFile:
 
         return sha1sum, fullname1
 
-    def log(self, message):
+    def log_error(self, message):
+        pass
+
+    def log_info(self, message):
         pass
 
     def loaddata(self, file_name):
@@ -153,7 +156,7 @@ class ImportFile:
         line = self.readline(f)
         disk_name = line
 
-        if not Record.create_disk(file_name, disk_name, disk_datetime):
+        if not FileRecord.create_disk(file_name, disk_name, disk_datetime):
             return 0
 
         count = 0
@@ -171,12 +174,12 @@ class ImportFile:
                 if sha1sum:
                     pair = 0
                     if fullname0 != fullname1:
-                        self.log('Filename first and second lines does not match')
+                        self.log_error('Filename first and second lines does not match')
                     elif fullname0[:len(disk_name)] != disk_name:
-                        self.log('Filename does not match to disk name')
+                        self.log_error('Filename does not match to disk name')
                     else:
                         try:
-                            Record.write_record(disk_name, disk_datetime, fullname0, size, file_datetime, rights, owner, group, sha1sum)
+                            FileRecord.write_record(disk_name, disk_datetime, fullname0, size, file_datetime, rights, owner, group, sha1sum)
                         except Exception as error:
                             self.log(str(error))
                         count += 1
