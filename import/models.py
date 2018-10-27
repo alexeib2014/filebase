@@ -36,3 +36,36 @@ class FileUnique(models.Model):
 class File(models.Model):
     folder = models.ForeignKey(Folder, on_delete=models.CASCADE, null=True, db_index=True)
     file = models.ForeignKey(FileUnique, on_delete=models.CASCADE, null=True, db_index=True)
+
+
+class Log(models.Model):
+    NOTSET = 0
+    DEBUG = 10
+    INFO = 20
+    WARNING = 30
+    ERROR = 40
+    CRITICAL = 50
+    datetime = models.DateTimeField(auto_now=True)
+    level = models.IntegerField()
+    message = models.TextField()
+    comment = models.TextField(default='')
+
+    @staticmethod
+    def debug(message):
+        Log.objects.create(level=Log.DEBUG, message=message)
+
+    @staticmethod
+    def info(message):
+        Log.objects.create(level=Log.INFO, message=message)
+
+    @staticmethod
+    def warning(message):
+        Log.objects.create(level=Log.WARNING, message=message)
+
+    @staticmethod
+    def error(message):
+        Log.objects.create(level=Log.ERROR, message=message)
+
+    @staticmethod
+    def critical(message):
+        Log.objects.create(level=Log.CRITICAL, message=message)

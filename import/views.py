@@ -1,6 +1,6 @@
 from django.http import HttpResponse
 import time
-from .models import Disk, Folder, File
+from .models import Disk, Folder, File, FileUnique, Log
 
 
 class FileRecord:
@@ -10,7 +10,7 @@ class FileRecord:
         if len(disks) == 0:
             return None
         if len(disks) > 1:
-            cls.log('Multiple disks in database (%s,%s)' % (name, scan_datetime))
+            Log.error('Multiple disks in database (%s,%s)' % (name, scan_datetime))
         cls.disk = disks[0]
         return cls.disk
 
@@ -32,7 +32,7 @@ class FileRecord:
     @classmethod
     def create_disk(cls, file_name, name, scan_datetime):
         if cls.get_disk(name, scan_datetime):
-            cls.log('Disk already imported (%s,%s)' % (name, scan_datetime))
+            Log.warning('Disk already imported (%s,%s)' % (name, scan_datetime))
             return False
 
         create_datetime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -55,26 +55,16 @@ class FileRecord:
 
         file_name = folder_file_name_arr[-1]
 
-        file = File(disk = disk,
-                  folder = folder,
-                    name = file_name,
-                    size = size,
-                datetime = datetime,
-                  rights = rights,
-                   owner = owner,
-                   group = group,
-                 sha1sum = sha1sum)
-        file.save()
+        file, created = FileUnique.objects.get_or_create(name = file_name,
+                                                         size = size,
+                                                     datetime = datetime,
+                                                       rights = rights,
+                                                        owner = owner,
+                                                        group = group,
+                                                      sha1sum = sha1sum)
 
-    @classmethod
-    def reset_database(cls):
-        disks = Disk.objects.all()
-        for disk in disks:
-            disk.delete()
-
-    @classmethod
-    def log(cls, message):
-        print(message)
+        File.objects.create(folder = folder,
+                              file = file)
 
 
 class ImportFile:
@@ -137,12 +127,6 @@ class ImportFile:
 
         return sha1sum, fullname1
 
-    def log_error(self, message):
-        pass
-
-    def log_info(self, message):
-        pass
-
     def loaddata(self, file_name):
         f = open(file_name)
 
@@ -168,23 +152,23 @@ class ImportFile:
                 if rights:
                     pair = 1
                 else:
-                    self.log('Invalid first line')
+                    Log.error('Invalid first line at line %i' % self.line_number)
             else:
                 sha1sum, fullname1 = self.translate_file_line1(line)
                 if sha1sum:
                     pair = 0
                     if fullname0 != fullname1:
-                        self.log_error('Filename first and second lines does not match')
+                        Log.error('Filename first and second lines does not match at line %i' % self.line_number)
                     elif fullname0[:len(disk_name)] != disk_name:
-                        self.log_error('Filename does not match to disk name')
+                        Log.error('Filename does not match to disk name at line %i' % self.line_number)
                     else:
                         try:
                             FileRecord.write_record(disk_name, disk_datetime, fullname0, size, file_datetime, rights, owner, group, sha1sum)
                         except Exception as error:
-                            self.log(str(error))
+                            Log.error(str(error))
                         count += 1
                 else:
-                    self.log('Invalid second line')
+                    Log.error('Invalid second line at line %i' % self.line_number)
                     rights, owner, group, size, file_datetime, fullname0 = self.translate_file_line0(line)
                     if rights:      # maybe one line skipped, try to fix
                         pair = 1
@@ -192,6 +176,8 @@ class ImportFile:
                         pair = 0
 
         f.close()
+
+        Log.info('Loaded filename "%s" with %i file records, disk name "%s"' % (file_name, count, disk_name))
 
         return count
 
@@ -207,8 +193,3 @@ def index(request):
         files = import_file.loaddata(fname)
 
     return HttpResponse('Hello, world! Loaded %i file records from %s' % (files,fname))
-
-
-def reset_database(request):
-    Record.reset_database()
-    return HttpResponse('Reset database finished')
